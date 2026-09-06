@@ -1,0 +1,23 @@
+sbalite
+Copyright 2026 Mario Vaccher
+
+Licensed under the Apache License, Version 2.0.
+See the LICENSE file for the full license text.
+
+This product includes third-party material:
+
+  ui-dist/ — Admin UI (compiled Vue.js assets)
+  Source:   Spring Boot Admin (https://github.com/codecentric/spring-boot-admin)
+  Module:   spring-boot-admin-server-ui
+  Copyright the Spring Boot Admin authors and codecentric AG
+  Licensed under the Apache License, Version 2.0
+  https://www.apache.org/licenses/LICENSE-2.0
+
+  The files under ui-dist/ are redistributed unmodified (as extracted from
+  the official spring-boot-admin-server-ui artifact) and are not covered
+  by the copyright of this project.
+
+"Spring" and "Spring Boot" are trademarks of Broadcom Inc. and/or its
+subsidiaries. This project is an independent, unofficial reimplementation
+of the Spring Boot Admin backend and is not affiliated with, endorsed by,
+or sponsored by Broadcom, VMware, Pivotal, or codecentric AG.
