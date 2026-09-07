@@ -253,16 +253,14 @@ fn try_serve_embedded(uri_path: &str) -> Option<Response> {
     }
 
     let last_segment = relative.rsplit('/').next().unwrap_or(relative);
-    if !last_segment.contains('.') {
-        if let Some(file) = UiAssets::get("index.html") {
-            return Some(
+    if !last_segment.contains('.') && let Some(file) = UiAssets::get("index.html") {
+        return Some(
                 Response::builder()
                     .status(StatusCode::OK)
                     .header("content-type", "text/html; charset=utf-8")
                     .body(Body::from(file.data.into_owned()))
                     .unwrap(),
             );
-        }
     }
 
     None
