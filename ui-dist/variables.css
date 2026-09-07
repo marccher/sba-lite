@@ -1,0 +1,53 @@
+/*:root {*/
+/*  --main-50: !*[(${palette.rgbColor50})]*! #e8fbef;*/
+/*  --main-100: !*[(${palette.rgbColor100})]*! #d0f7df;*/
+/*  --main-200: !*[(${palette.rgbColor200})]*! #a1efbd;*/
+/*  --main-300: !*[(${palette.rgbColor300})]*! #71e69c;*/
+/*  --main-400: !*[(${palette.rgbColor400})]*! #41de7b;*/
+/*  --main-500: !*[(${palette.rgbColor500})]*! #22c55e;*/
+/*  --main-600: !*[(${palette.rgbColor600})]*! #1a9547;*/
+/*  --main-700: !*[(${palette.rgbColor700})]*! #116530;*/
+/*  --main-800: !*[(${palette.rgbColor800})]*! #09351a;*/
+/*  --main-900: !*[(${palette.rgbColor900})]*! #010603;*/
+
+/*  --bg-color-start: !*[(${uiSettings.theme.palette.shade300})]*! #71e69c;*/
+/*  --bg-color-stop: !*[(${uiSettings.theme.palette.shade700})]*! #09351a;*/
+/*}*/
+
+/*.bg-color-start {*/
+/*  transition: 0.4s ease;*/
+/*  stop-color: var(--bg-color-start);*/
+/*}*/
+
+/*.bg-color-stop {*/
+/*  transition: 0.4s ease;*/
+/*  stop-color: var(--bg-color-stop);*/
+/*}*/
+
+
+:root {
+  --main-50: rgb(238, 252, 250);
+  --main-100: rgb(217, 247, 244);
+  --main-200: rgb(183, 240, 234);
+  --main-300: rgb(145, 232, 224);
+  --main-400: rgb(107, 224, 213);
+  --main-500: rgb(71, 217, 203);
+  --main-600: rgb(39, 190, 175);
+  --main-700: rgb(30, 144, 132);
+  --main-800: rgb(20, 97, 90);
+  --main-900: rgb(10, 47, 43);
+
+  --bg-color-start: #91E8E0;
+  --bg-color-stop: #1E9084;
+}
+
+.bg-color-start {
+  transition: 0.4s ease;
+  stop-color: var(--bg-color-start);
+}
+
+.bg-color-stop {
+  transition: 0.4s ease;
+  stop-color: var(--bg-color-stop);
+}
+

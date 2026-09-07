@@ -1,9 +1,8 @@
 # SBA Lite
 
-Lightweight, JVM-free Spring Boot Admin-compatible monitoring server.
+Lightweight, JVM-free monitoring server designed specifically for **Spring Boot applications** exposing **Actuator** endpoints.
 
-SBA Lite uses the official Spring Boot Admin Vue UI with a native Rust backend that proxies and communicates directly with remote Spring Boot Actuator endpoints.
-<p >
+SBA Lite embeds the official Spring Boot Admin Vue UI into a native Rust backend. Rather than acting as a simple network proxy, the Rust core provides an active **payload translation layer**: it intercepts, parses, and reformats remote Spring Boot Actuator responses in real time to match the exact data structures expected by the frontend Vue UI.<p >
   <img src="assets/screenshot_sba.png" alt="Runtime Memory Usage (RSS) Comparison Over Time: Java JVM vs GraalVM AOT vs SBA Lite Rust" width="1200">
 </p>
 
@@ -12,7 +11,7 @@ SBA Lite uses the official Spring Boot Admin Vue UI with a native Rust backend t
 
 - **Embedded UI**: The official Spring Boot Admin Vue UI is compiled directly into the single executable binary, requiring no external asset deployment.
 - **Lightweight Backend**: Zero-JVM, low-overhead monitoring powered by a native Rust core using ~15 MB of memory.
-- **Actuator Proxying**: Transparent proxying of remote Spring Boot Actuator endpoints to the UI.
+- **Actuator Adaptation & Translation**: Actively intercepts and translates remote Spring Boot Actuator payloads to seamlessly match the expected data structures of the UI.
 - **State & Discovery**: Application and instance discovery with continuous health polling and an event journal.
 - **Real-time Updates**: Live instance state updates driven by Server-Sent Events (SSE).
 
@@ -24,7 +23,7 @@ Observed Resident Set Size (RSS) in the author's environment over a 180-second i
 |---|:---:|---|
 | Spring Boot Admin — JVM | ~260.3 MB | **High fluctuation:** High initial peak during JIT compilation and class loading, followed by ongoing Garbage Collector cycles (jagged curve). |
 | Spring Boot Admin — GraalVM AOT | ~112.1 MB | **Moderate stability:** Bypasses JIT overhead via Ahead-of-Time compilation, though memory slightly shifts during native GC routines. |
-| **SBA Lite — Rust** | **~15.6 MB** | **Absolute stability:** Linear, rock-solid flat line. No runtime or VM overhead; memory is allocated and freed deterministically. |
+| **SBA Lite — Rust** | **~15.6 MB** | **Ultra-low consumption & absolute stability:** Minimal resource footprint with a rock-solid flat line. No runtime or VM overhead; memory is allocated and freed deterministically. |
 
 ### Benchmark Visualization
 
