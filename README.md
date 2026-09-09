@@ -59,7 +59,8 @@ Example `instances.toml`:
 [server]
 port = 9001
 poll_interval_secs = 10 # every quantum query remote actuators
-insecure_tls = false # true ONLY for local targets with cert self-signed
+insecure_tls = false # true ONLY local or no prod use, otherwise use proper CA certs (ca_cert_path)
+ca_cert_path = ["/path/to/ca-a.pem", "/path/to/ca-b.pem"] # optional, if you want to use custom CA certs for HTTPS connections
 log_level = "info" # "info" (default) | "debug" (log every remote call) | "trace" (+ health response body)
 journal_max_events = 500 # circular buffer: beyond this number, events older than the journal are discarded
 
@@ -133,22 +134,12 @@ curl -s https://host/context/actuator
 curl -s https://host/context/actuator/health
 ```
 
-## Docker
-
-```bash
-docker build -t sbalite .
-
-docker run -p 9001:9001 \
-  -v \$(pwd)/instances.toml:/config/instances.toml:ro \
-  sbalite
-```
-
 ## Building from source
-
 
 ```bash
 cargo build --release
 ```
+
 ## Updating the embedded UI
 
 The UI in `ui-dist/` is extracted from the official `spring-boot-admin-server-ui` jar (not built from source). To update to a newer Spring Boot Admin version:
@@ -156,6 +147,30 @@ The UI in `ui-dist/` is extracted from the official `spring-boot-admin-server-ui
 1. Locate `spring-boot-admin-server-ui-<version>.jar` in your local Maven/Gradle cache.
 2. Extract its static resources into `ui-dist/`.
 3. Ensure `ui-dist/index.html` uses a relative `<base href="/" />`.
+
+## Docker
+
+To build the image locally, run the following command from the root directory of the project:
+
+```bash
+docker build -t sbalite-local .
+```
+
+To run the container with your custom configuration and certificates, execute:
+
+```bash
+docker run -d \
+  --name my-sbalite \
+  -p 9001:9001 \
+  -v "\$(pwd)/instances.toml:/config/instances.toml" \
+  -v "/PATH/TO/YOUR/LOCAL/CERTIFICATES:/etc/ssl/certs" \
+  sbalite-local
+```
+
+### ℹ️ Configuration Notes
+* **`instances.toml`**: Run the command from the folder containing your configuration file. `$(pwd)` automatically resolves to your current working directory.
+* **Certificates**: Replace `/PATH/TO/YOUR/LOCAL/CERTIFICATES` with the absolute path to the directory on your host machine containing your custom CA certificates (e.g., `.pem` or `.crt` files). This allows the proxy to authenticate external HTTPS connections.
+* **Subsequent Runs**: To stop the proxy, use `docker stop my-sbalite`. To start it again without re-creating the container, simply run `docker start my-sbalite`.
 
 ## License
 

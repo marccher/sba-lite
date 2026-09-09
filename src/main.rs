@@ -135,11 +135,36 @@ async fn main() {
         .or(server_cfg.insecure_tls)
         .unwrap_or(false);
 
-    let http_client = reqwest::Client::builder()
-        .danger_accept_invalid_certs(insecure_tls)
-        .user_agent("sbalite/0.1 (+monitoring client)")
-        .build()
-        .expect("reqwest client");
+    let http_client = {
+        let mut builder = reqwest::Client::builder()
+            .danger_accept_invalid_certs(insecure_tls)
+            .user_agent("sbalite/0.1 (+monitoring client)");
+    
+        if let Some(ca_paths) = &server_cfg.ca_cert_path {
+            for ca_path in ca_paths.clone().into_vec() {
+                match std::fs::read(&ca_path) {
+                    Ok(pem_bytes) => match reqwest::Certificate::from_pem(&pem_bytes) {
+                        Ok(cert) => {
+                            builder = builder.add_root_certificate(cert);
+                            println!("Trusting additional CA certificate from {ca_path}");
+                        }
+                        Err(e) => {
+                            eprintln!(
+                                "Warning: {ca_path} is not a valid PEM certificate ({e}); ignoring."
+                            );
+                        }
+                    },
+                    Err(e) => {
+                        eprintln!(
+                            "Warning: could not read ca_cert_path entry {ca_path} ({e}); ignoring."
+                        );
+                    }
+                }
+            }
+        }
+    
+        builder.build().expect("reqwest client")
+    };
 
     if insecure_tls {
         eprintln!(
@@ -253,14 +278,16 @@ fn try_serve_embedded(uri_path: &str) -> Option<Response> {
     }
 
     let last_segment = relative.rsplit('/').next().unwrap_or(relative);
-    if !last_segment.contains('.') && let Some(file) = UiAssets::get("index.html") {
-        return Some(
+    if !last_segment.contains('.') {
+        if let Some(file) = UiAssets::get("index.html") {
+            return Some(
                 Response::builder()
                     .status(StatusCode::OK)
                     .header("content-type", "text/html; charset=utf-8")
                     .body(Body::from(file.data.into_owned()))
                     .unwrap(),
             );
+        }
     }
 
     None

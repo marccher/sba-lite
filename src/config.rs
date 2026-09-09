@@ -22,6 +22,16 @@ pub struct ServerConfig {
     /// calls to remote actuators. For local development with self-signed
     /// certificates only — do not use in production.
     pub insecure_tls: Option<bool>,
+    /// Path(s) to PEM-encoded CA certificate(s) (e.g. one or more
+    /// internal/corporate root CAs) to trust in ADDITION to the OS's
+    /// system trust store, without disabling verification and without
+    /// touching the system's certificate configuration. Use this instead
+    /// of insecure_tls when your targets use certificates issued by
+    /// internal PKIs the OS doesn't already trust. Accepts either a
+    /// single path (`ca_cert_path = "/path/to/ca.pem"`) or a list
+    /// (`ca_cert_path = ["/path/a.pem", "/path/b.pem"]`) if you have
+    /// certificates from multiple different internal CAs.
+    pub ca_cert_path: Option<OneOrMany>,
     /// Log verbosity for calls to remote servers, useful for debug/trace.
     /// Values: "info" (default, errors and main events only), "debug"
     /// (every call made and its outcome), "trace" (like debug, plus the
@@ -38,6 +48,25 @@ pub struct ServerConfig {
     /// server remains unprotected (default behavior).
     pub auth_username: Option<String>,
     pub auth_password: Option<String>,
+}
+
+/// Accepts either a single TOML string or an array of strings for the
+/// same field, so `ca_cert_path` can be written either way depending on
+/// how many CA certificates the user needs to trust.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(untagged)]
+pub enum OneOrMany {
+    One(String),
+    Many(Vec<String>),
+}
+
+impl OneOrMany {
+    pub fn into_vec(self) -> Vec<String> {
+        match self {
+            OneOrMany::One(s) => vec![s],
+            OneOrMany::Many(v) => v,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Deserialize)]
