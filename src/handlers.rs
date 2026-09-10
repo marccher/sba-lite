@@ -23,14 +23,20 @@ pub async fn applications_handler(
     headers: HeaderMap,
     State(state): State<MonitorState>,
 ) -> Response {
-    let wants_sse = headers
+    let accept = headers
         .get(ACCEPT)
         .and_then(|v| v.to_str().ok())
-        .map(|v| v.contains("text/event-stream"))
-        .unwrap_or(false);
+        .unwrap_or("");
 
-    if wants_sse {
+    if accept.contains("text/event-stream") {
         sse_stream(state).await.into_response()
+    } else if accept.contains("text/html") {
+        // A plain browser refresh/navigation on this exact path (e.g.
+        // hitting F5 while on /applications) sends Accept: text/html, not
+        // an XHR/fetch Accept header — serve the SPA shell instead of raw
+        // JSON, since this exact route otherwise takes priority over the
+        // static-file fallback in main.rs.
+        crate::spa_shell()
     } else {
         Json(build_application_groups(&state).await).into_response()
     }
@@ -86,13 +92,12 @@ pub async fn health_groups_handler(
 /// event for every JournalEvent recorded, otherwise just pings), plain
 /// JSON for the initial fetch.
 pub async fn journal_handler(headers: HeaderMap, State(state): State<MonitorState>) -> Response {
-    let wants_sse = headers
+    let accept = headers
         .get(ACCEPT)
         .and_then(|v| v.to_str().ok())
-        .map(|v| v.contains("text/event-stream"))
-        .unwrap_or(false);
+        .unwrap_or("");
 
-    if wants_sse {
+    if accept.contains("text/event-stream") {
         let rx = state.subscribe_journal();
         let live = BroadcastStream::new(rx).filter_map(|msg| async move {
             match msg {
@@ -108,17 +113,34 @@ pub async fn journal_handler(headers: HeaderMap, State(state): State<MonitorStat
                     .text("ping"),
             )
             .into_response()
+    } else if accept.contains("text/html") {
+        // Same reasoning as applications_handler: a browser refresh on
+        // this exact path would otherwise get raw JSON instead of the SPA
+        // shell.
+        crate::spa_shell()
     } else {
         let journal = state.journal.read().await;
         Json(journal.clone()).into_response()
     }
 }
 
-/// GET /instances/{id} — detail of a single instance.
+/// GET /instances/{id} — detail of a single instance. This exact path also
+/// matches a real Vue Router route (/instances/:instanceId), so the same
+/// content-negotiation fix as applications_handler applies here too.
 pub async fn instance_detail_handler(
+    headers: HeaderMap,
     State(state): State<MonitorState>,
     Path(id): Path<String>,
 ) -> Response {
+    let accept = headers
+        .get(ACCEPT)
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("");
+
+    if accept.contains("text/html") {
+        return crate::spa_shell();
+    }
+
     let instances = state.instances.read().await;
     match instances.get(&id) {
         Some(view) => Json(view.clone()).into_response(),

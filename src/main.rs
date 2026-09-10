@@ -139,7 +139,7 @@ async fn main() {
         let mut builder = reqwest::Client::builder()
             .danger_accept_invalid_certs(insecure_tls)
             .user_agent("sbalite/0.1 (+monitoring client)");
-    
+
         if let Some(ca_paths) = &server_cfg.ca_cert_path {
             for ca_path in ca_paths.clone().into_vec() {
                 match std::fs::read(&ca_path) {
@@ -162,7 +162,7 @@ async fn main() {
                 }
             }
         }
-    
+
         builder.build().expect("reqwest client")
     };
 
@@ -237,6 +237,24 @@ pub fn is_hop_by_hop(name: &str) -> bool {
             | "transfer-encoding"
             | "upgrade"
     )
+}
+
+/// Serves the SPA's index.html shell directly. Used both by the static
+/// fallback below and by handlers.rs (applications_handler,
+/// journal_handler) for their own content negotiation: an exact route
+/// like /applications or /instances/events takes priority over this
+/// fallback in Axum's routing, so a plain browser refresh (Accept:
+/// text/html) on those paths would otherwise hit the JSON/SSE handler
+/// directly instead of the page shell.
+pub fn spa_shell() -> Response {
+    match UiAssets::get("index.html") {
+        Some(file) => Response::builder()
+            .status(StatusCode::OK)
+            .header("content-type", "text/html; charset=utf-8")
+            .body(Body::from(file.data.into_owned()))
+            .unwrap(),
+        None => StatusCode::NOT_FOUND.into_response(),
+    }
 }
 
 /// Serves the Vue UI embedded in the binary. If the requested file doesn't
