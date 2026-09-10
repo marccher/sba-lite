@@ -1,12 +1,7 @@
-# Complete configuration for the Rust server: general settings + instances
-# to monitor. This file is meant to be freely edited by the user, without
-# touching the code — no reference to a Java backend remains in the code:
-# this is the single source of configuration.
-
 [server]
 port = 9001                      # port the Rust server listens on
 poll_interval_secs = 10          # how often to poll the remote actuators
-insecure_tls = false             # true ONLY for local targets with self-signed certs
+insecure_tls = false             # true ONLY local or no prod use, otherwise use proper CA certs (ca_cert_path)
 # ca_cert_path = "/path/to/internal-ca.pem"  # trust an internal/corporate CA in ADDITION to the OS trust store
 # ca_cert_path = ["/path/to/ca-a.pem", "/path/to/ca-b.pem"]  # or a list, if you have multiple different internal CAs
 log_level = "info"                # "info" (default) | "debug" (log every remote call) | "trace" (+ health response body)

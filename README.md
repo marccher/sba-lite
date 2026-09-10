@@ -61,18 +61,24 @@ SBA Lite runs as a zero-dependency setup requiring only **two files**: the preco
 
 ### 1. Configuration
 
-Create a file named `instances.toml` in the same directory as your executable and add your configuration.
+Create a file named `instances.toml` in the same directory as your executable. You can use the provided `instances.example.toml` file as a reference or copy it to jumpstart your configuration:
+
+```bash
+# Quick shortcut to create your configuration file from the template
+cp instances.example.toml instances.toml
+```
 
 Example `instances.toml`:
 
 ```toml
 [server]
-port = 9001
-poll_interval_secs = 10 # every quantum query remote actuators
-insecure_tls = false # true ONLY local or no prod use, otherwise use proper CA certs (ca_cert_path)
-ca_cert_path = ["/path/to/ca-a.pem", "/path/to/ca-b.pem"] # optional, if you want to use custom CA certs for HTTPS connections
-log_level = "info" # "info" (default) | "debug" (log every remote call) | "trace" (+ health response body)
-journal_max_events = 1000 # circular buffer: beyond this number, events older than the journal are discarded
+port = 9001                         # port the Rust server listens on
+poll_interval_secs = 10             # every quantum query remote actuators
+insecure_tls = false                # true ONLY local or no prod use, otherwise use proper CA certs (ca_cert_path)
+ca_cert_path = ["/path/to/ca-a.pem",
+                "/path/to/ca-b.pem"]# optional, if you want to use custom CA certs for HTTPS connections
+log_level = "info"                  # "info" (default) | "debug" (log every remote call) | "trace" (+ health response body)
+journal_max_events = 1000           # circular buffer: beyond this number, events older than the journal are discarded
 
 # if you set BOTH, protect UI and API with HTTP Basic Auth
 #auth_username = "admin" 

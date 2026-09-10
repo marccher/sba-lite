@@ -22,4 +22,4 @@ The HTTP server will start. Open http://localhost:9001 in your browser.
 
 FULL DOCUMENTATION & BENCHMARKS
 For the complete guide, architecture details, diagrams, and Docker setup,
-please visit the official repository: https://github.com
+please visit the official repository: https://github.com/marccher/sba-lite
