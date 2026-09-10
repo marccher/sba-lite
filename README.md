@@ -3,9 +3,8 @@
 Lightweight, JVM-free monitoring server designed specifically for **Spring Boot applications** exposing **Actuator** endpoints.
 
 SBA Lite embeds the official Spring Boot Admin Vue UI into a native Rust backend. Rather than acting as a simple network proxy, the Rust core provides an active **payload translation layer**: it intercepts, parses, and reformats remote Spring Boot Actuator responses in real time to match the exact data structures expected by the frontend Vue UI.<p >
-  <img src="assets/screenshot_sba.png" alt="Runtime Memory Usage (RSS) Comparison Over Time: Java JVM vs GraalVM AOT vs SBA Lite Rust" width="1200">
+<img src="assets/screenshot_sba.png" alt="Runtime Memory Usage (RSS) Comparison Over Time: Java JVM vs GraalVM AOT vs SBA Lite Rust" width="1200">
 </p>
-
 
 ## Features
 
@@ -43,7 +42,18 @@ Below are the real-time telemetry charts captured during execution. The time-ser
 
 - Spring Boot applications with Spring Boot Actuator enabled.
 
-Precompiled binaries are available for Linux (x86_64/aarch64), macOS (Intel/Apple Silicon), and Windows (x86_64).
+### Precompiled Binaries
+
+Select the package matching your operating system and architecture to download the latest release:
+
+| Operating System | Architecture  | Download Button                                                                                                             |
+|:-----------------|:--------------|:----------------------------------------------------------------------------------------------------------------------------|
+| 🐧 **Linux**     | x86_64        | [⬇️ Download for Linux x86_64](https://github.com/marccher/sba-lite/releases/latest/download/sbalite-linux-x86_64.tar.gz)   |
+| 🐧 **Linux**     | aarch64       | [⬇️ Download for Linux aarch64](https://github.com/marccher/sba-lite/releases/latest/download/sbalite-linux-aarch64.tar.gz) |
+| 🍏 **macOS**     | Apple Silicon | [⬇️ Download for macOS ARM](https://github.com/marccher/sba-lite/releases/latest/download/sbalite-macos-aarch64.tar.gz)                                                          |
+| 🪟 **Windows**   | x86_64        | [⬇️ Download for Windows x86_64](https://github.com/marccher/sba-lite/releases/latest/download/sbalite-windows-x86_64.zip)                                                      |
+
+An official Docker image is also published via GitHub Packages (GHCR) for containerized deployments.
 
 ## Quick Start
 
@@ -82,10 +92,30 @@ actuator_base_url = "https://host2/context/actuator"
 
 ### 2. Run
 
-Launch the Rust server binary directly from your terminal:
-
+#### On Linux
+Before launching the binary for the first time, grant it execution permissions:
 ```bash
+chmod +x sbalite
 ./sbalite
+```
+
+#### On macOS (Apple Silicon)
+Since the binary is downloaded from GitHub, macOS Gatekeeper will put it in quarantine. Run the following commands to remove the quarantine flag and grant execution permissions:
+```bash
+# Remove the macOS quarantine attribute
+xattr -d com.apple.quarantine sbalite
+
+# Grant execution permissions
+chmod +x sbalite
+
+./sbalite
+```
+*Note: If you still cannot run it, go to **System Settings > Privacy & Security** and click **"Open Anyway"** at the bottom of the page.*
+
+#### On Windows
+Launch the executable directly from your terminal (Command Prompt or PowerShell):
+```powershell
+.\sbalite.exe
 ```
 
 Open `http://localhost:9001` in your browser.
@@ -150,14 +180,33 @@ The UI in `ui-dist/` is extracted from the official `spring-boot-admin-server-ui
 
 ## Docker
 
-To build the image locally, run the following command from the root directory of the project:
+You can choose to pull the pre-built official image or build it yourself from source.
+
+### Option A: Pull the Pre-built Image
+To fetch the official container image from GitHub Container Registry, run:
+
+```bash
+docker pull ghcr.io/marccher/sba-lite:latest
+```
+
+Then run the container (replace `ghcr.io/...` below with the image path):
+```bash
+docker run -d \
+  --name my-sbalite \
+  -p 9001:9001 \
+  -v "\$(pwd)/instances.toml:/config/instances.toml" \
+  -v "/PATH/TO/YOUR/LOCAL/CERTIFICATES:/etc/ssl/certs" \
+  ghcr.io/marccher/sba-lite:latest
+```
+
+### Option B: Build and Run Locally
+If you want to compile and build the container image directly from source, execute the following commands from the root directory:
 
 ```bash
 docker build -t sbalite-local .
 ```
 
-To run the container with your custom configuration and certificates, execute:
-
+To run your locally built container:
 ```bash
 docker run -d \
   --name my-sbalite \
@@ -168,9 +217,9 @@ docker run -d \
 ```
 
 ### ℹ️ Configuration Notes
-* **`instances.toml`**: Run the command from the folder containing your configuration file. `$(pwd)` automatically resolves to your current working directory.
-* **Certificates**: Replace `/PATH/TO/YOUR/LOCAL/CERTIFICATES` with the absolute path to the directory on your host machine containing your custom CA certificates (e.g., `.pem` or `.crt` files). This allows the proxy to authenticate external HTTPS connections.
-* **Subsequent Runs**: To stop the proxy, use `docker stop my-sbalite`. To start it again without re-creating the container, simply run `docker start my-sbalite`.
+* **`instances.toml`**: Run the container command from the exact folder where your configuration file is located. `$(pwd)` automatically resolves to your current working directory.
+* **Certificates**: Replace `/PATH/TO/YOUR/LOCAL/CERTIFICATES` with the absolute path to the directory on your host machine containing your custom CA certificates (e.g., `.pem` or `.crt` files). This allows the proxy to securely authenticate external HTTPS connections.
+* **Subsequent Runs**: To stop the server, use `docker stop my-sbalite`. To start it again without recreating the container, simply run `docker start my-sbalite`.
 
 ## License
 
