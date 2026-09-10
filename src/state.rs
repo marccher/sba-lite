@@ -221,102 +221,116 @@ async fn check_health(
             tracing::debug!(target: "sbalite::poller", "  -> {status_code} {health_url}");
             let body: Value = resp.json().await.unwrap_or(Value::Null);
             tracing::trace!(target: "sbalite::poller", "  body: {body}");
-
-            // Spring responds with HTTP 503 (not 200) when the aggregate
-            // health is DOWN, but the body is still a complete and valid
-            // health JSON — just as it would be with a 200. So we do NOT
-            // use the HTTP status to decide whether the body is usable: we
-            // always try to read a "status" string field from it, and
-            // treat the body as a valid health payload if we find it,
-            // regardless of the HTTP code. The generic placeholder
-            // (path/error/status/timestamp) is reserved for cases where
-            // the body is NOT a real health payload (e.g. a generic
-            // non-Spring HTML/JSON error page, a 404 on the wrong path,
-            // etc.).
-            let parsed_status = body.get("status").and_then(|s| s.as_str());
-
-            if let Some(status) = parsed_status {
-                let status = status.to_string();
-
-                // "details" = the body minus "status", with a twist: if
-                // Spring uses "components" to nest the sub-indicators (db,
-                // diskSpace, ping, ssl...), we "hoist" it to become
-                // directly the content of "details" instead of leaving it
-                // nested one level deeper — this is the shape the Vue UI
-                // expects in order to render each sub-component as a
-                // separate health node (colored badge) instead of raw
-                // text.
-                let details = match body {
-                    Value::Object(mut map) => {
-                        map.remove("status");
-                        match map.remove("components") {
-                            Some(Value::Object(mut components)) => {
-                                // any remaining fields (e.g. "groups") stay
-                                // alongside, we don't lose them
-                                for (k, v) in map {
-                                    components.insert(k, v);
-                                }
-                                Value::Object(components)
-                            }
-                            Some(other) => {
-                                map.insert("components".into(), other);
-                                Value::Object(map)
-                            }
-                            None => Value::Object(map),
-                        }
-                    }
-                    other => other,
-                };
-
-                StatusInfoView {
-                    status,
-                    details,
-                    out_of_service: false,
-                    restricted: false,
-                }
-            } else {
-                let mut details = Map::new();
-                details.insert("path".into(), Value::String(health_url.clone()));
-                details.insert(
-                    "error".into(),
-                    Value::String(
-                        status_code
-                            .canonical_reason()
-                            .unwrap_or("Error")
-                            .to_string(),
-                    ),
-                );
-                details.insert("status".into(), Value::Number(status_code.as_u16().into()));
-                details.insert("timestamp".into(), Value::String(now_iso()));
-
-                StatusInfoView {
-                    status: "DOWN".to_string(),
-                    details: Value::Object(details),
-                    out_of_service: false,
-                    restricted: false,
-                }
-            }
+            build_status_info_from_body(body, status_code, &health_url)
         }
         Err(e) => {
             tracing::debug!(target: "sbalite::poller", "  -> error {health_url}: {e}");
-            let mut details = Map::new();
-            let exception_name = if e.is_timeout() {
-                "java.util.concurrent.TimeoutException"
-            } else if e.is_connect() {
-                "java.net.ConnectException"
-            } else {
-                "java.io.IOException"
-            };
-            details.insert("exception".into(), Value::String(exception_name.into()));
-            details.insert("message".into(), Value::String(e.to_string()));
-
-            StatusInfoView {
-                status: "OFFLINE".to_string(),
-                details: Value::Object(details),
-                out_of_service: false,
-                restricted: false,
-            }
+            build_status_info_from_error(&e)
         }
+    }
+}
+
+/// Pure transformation of a /health response body into our StatusInfoView
+/// shape. Kept separate from the network call above so it can be unit
+/// tested directly with fabricated JSON, without spinning up a server.
+///
+/// Spring responds with HTTP 503 (not 200) when the aggregate health is
+/// DOWN, but the body is still a complete and valid health JSON — just as
+/// it would be with a 200. So we do NOT use the HTTP status to decide
+/// whether the body is usable: we always try to read a "status" string
+/// field from it, and treat the body as a valid health payload if we find
+/// it, regardless of the HTTP code. The generic placeholder
+/// (path/error/status/timestamp) is reserved for cases where the body is
+/// NOT a real health payload (e.g. a generic non-Spring HTML/JSON error
+/// page, a 404 on the wrong path, etc.).
+fn build_status_info_from_body(
+    body: Value,
+    status_code: reqwest::StatusCode,
+    health_url: &str,
+) -> StatusInfoView {
+    let parsed_status = body.get("status").and_then(|s| s.as_str());
+
+    if let Some(status) = parsed_status {
+        let status = status.to_string();
+
+        // "details" = the body minus "status", with a twist: if Spring
+        // uses "components" to nest the sub-indicators (db, diskSpace,
+        // ping, ssl...), we "hoist" it to become directly the content of
+        // "details" instead of leaving it nested one level deeper — this
+        // is the shape the Vue UI expects in order to render each
+        // sub-component as a separate health node (colored badge) instead
+        // of raw text.
+        let details = match body {
+            Value::Object(mut map) => {
+                map.remove("status");
+                match map.remove("components") {
+                    Some(Value::Object(mut components)) => {
+                        // any remaining fields (e.g. "groups") stay
+                        // alongside, we don't lose them
+                        for (k, v) in map {
+                            components.insert(k, v);
+                        }
+                        Value::Object(components)
+                    }
+                    Some(other) => {
+                        map.insert("components".into(), other);
+                        Value::Object(map)
+                    }
+                    None => Value::Object(map),
+                }
+            }
+            other => other,
+        };
+
+        StatusInfoView {
+            status,
+            details,
+            out_of_service: false,
+            restricted: false,
+        }
+    } else {
+        let mut details = Map::new();
+        details.insert("path".into(), Value::String(health_url.to_string()));
+        details.insert(
+            "error".into(),
+            Value::String(
+                status_code
+                    .canonical_reason()
+                    .unwrap_or("Error")
+                    .to_string(),
+            ),
+        );
+        details.insert("status".into(), Value::Number(status_code.as_u16().into()));
+        details.insert("timestamp".into(), Value::String(now_iso()));
+
+        StatusInfoView {
+            status: "DOWN".to_string(),
+            details: Value::Object(details),
+            out_of_service: false,
+            restricted: false,
+        }
+    }
+}
+
+/// Pure transformation of a transport-level error (connection refused,
+/// timeout, ...) into our StatusInfoView shape.
+fn build_status_info_from_error(e: &reqwest::Error) -> StatusInfoView {
+    let mut details = Map::new();
+    let exception_name = if e.is_timeout() {
+        "java.util.concurrent.TimeoutException"
+    } else if e.is_connect() {
+        "java.net.ConnectException"
+    } else {
+        "java.io.IOException"
+    };
+    details.insert("exception".into(), Value::String(exception_name.into()));
+    details.insert("message".into(), Value::String(e.to_string()));
+
+    StatusInfoView {
+        status: "OFFLINE".to_string(),
+        details: Value::Object(details),
+        out_of_service: false,
+        restricted: false,
     }
 }
 
@@ -577,4 +591,147 @@ pub fn spawn_poller(state: MonitorState, interval_secs: u64) {
             poll_once(&state).await;
         }
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn origin_of_strips_path_and_keeps_scheme_and_host() {
+        assert_eq!(
+            origin_of("https://host.example.com/context/actuator"),
+            "https://host.example.com"
+        );
+    }
+
+    #[test]
+    fn origin_of_keeps_explicit_port() {
+        assert_eq!(
+            origin_of("https://host.example.com:8443/context/actuator"),
+            "https://host.example.com:8443"
+        );
+    }
+
+    #[test]
+    fn origin_of_handles_bare_host_with_no_path() {
+        assert_eq!(origin_of("http://localhost:9000"), "http://localhost:9000");
+    }
+
+    #[test]
+    fn origin_of_falls_back_to_input_when_no_scheme_separator() {
+        // Defensive case: shouldn't happen with valid config, but must not panic.
+        assert_eq!(origin_of("not-a-url"), "not-a-url");
+    }
+
+    #[test]
+    fn health_body_up_with_components_is_hoisted() {
+        // This is the exact shape that originally broke the Health panel
+        // rendering: Spring nests sub-indicators under "components", but
+        // the Vue UI expects them directly under "details".
+        let body = json!({
+            "status": "UP",
+            "components": {
+                "ssl": { "status": "UP", "details": { "validChains": [], "invalidChains": [] } },
+                "db": { "status": "UP", "details": { "database": "Oracle" } },
+                "ping": { "status": "UP" }
+            }
+        });
+
+        let result =
+            build_status_info_from_body(body, reqwest::StatusCode::OK, "https://host/health");
+
+        assert_eq!(result.status, "UP");
+        // "components" must be gone as a wrapping key: its contents become
+        // "details" directly.
+        assert!(result.details.get("components").is_none());
+        assert!(result.details.get("ssl").is_some());
+        assert!(result.details.get("db").is_some());
+        assert!(result.details.get("ping").is_some());
+    }
+
+    #[test]
+    fn health_body_down_with_groups_keeps_groups_alongside_hoisted_components() {
+        // Real-world shape observed from a Spring Boot 3.x app with health
+        // groups configured (liveness/readiness) plus a failing Redis
+        // component.
+        let body = json!({
+            "status": "DOWN",
+            "groups": ["liveness", "readiness"],
+            "components": {
+                "livenessState": { "status": "UP" },
+                "redis": {
+                    "status": "DOWN",
+                    "details": { "error": "Cannot get Jedis connection" }
+                }
+            }
+        });
+
+        let result = build_status_info_from_body(
+            body,
+            reqwest::StatusCode::SERVICE_UNAVAILABLE,
+            "https://host/health",
+        );
+
+        assert_eq!(result.status, "DOWN");
+        // "groups" must survive the hoisting, alongside the components.
+        assert_eq!(
+            result.details.get("groups").unwrap(),
+            &json!(["liveness", "readiness"])
+        );
+        assert!(result.details.get("livenessState").is_some());
+        assert!(result.details.get("redis").is_some());
+    }
+
+    #[test]
+    fn health_body_503_with_valid_json_is_not_discarded() {
+        // This is the fix for the "hidden 503s" bug: Spring can return a
+        // fully valid health payload alongside a 503 status code (when the
+        // aggregate health is DOWN), and it must NOT be replaced by the
+        // generic placeholder.
+        let body = json!({ "status": "DOWN", "details": {} });
+
+        let result = build_status_info_from_body(
+            body,
+            reqwest::StatusCode::SERVICE_UNAVAILABLE,
+            "https://host/health",
+        );
+
+        assert_eq!(result.status, "DOWN");
+        // The real body must be used, not the generic path/error/status
+        // placeholder.
+        assert!(result.details.get("path").is_none());
+        assert!(result.details.get("error").is_none());
+    }
+
+    #[test]
+    fn health_body_without_status_field_falls_back_to_generic_placeholder() {
+        // A genuine non-health response (e.g. a 404 error page from an
+        // unrelated static resource handler) has no "status" field at all
+        // — this is the one case that SHOULD produce the generic
+        // placeholder.
+        let body = json!({ "error": "Not Found", "path": "/actuator/env" });
+
+        let result =
+            build_status_info_from_body(body, reqwest::StatusCode::NOT_FOUND, "https://host/env");
+
+        assert_eq!(result.status, "DOWN");
+        assert_eq!(result.details.get("status").unwrap(), &json!(404));
+        assert_eq!(
+            result.details.get("path").unwrap(),
+            &json!("https://host/env")
+        );
+    }
+
+    #[test]
+    fn health_body_up_with_no_extra_fields_has_empty_details() {
+        let body = json!({ "status": "UP" });
+
+        let result =
+            build_status_info_from_body(body, reqwest::StatusCode::OK, "https://host/health");
+
+        assert_eq!(result.status, "UP");
+        assert_eq!(result.details, json!({}));
+    }
 }

@@ -2,10 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main, feature/*]
+    branches: [main]
   pull_request:
-    branches: [main, feature/*]
-  workflow_dispatch:
+    branches: [main]
 
 jobs:
   check:
@@ -31,3 +30,6 @@ jobs:
 
       - name: cargo build
         run: cargo build --locked
+
+      - name: cargo test
+        run: cargo test --locked
