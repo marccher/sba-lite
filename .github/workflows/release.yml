@@ -75,7 +75,7 @@ jobs:
           fi
 
           cp instances.example.toml "$staging/" 2>/dev/null || true
-          cp README.md "$staging/" 2>/dev/null || true
+          cp README.txt "$staging/" 2>/dev/null || true
           cp LICENSE "$staging/" 2>/dev/null || true
           cp NOTICE "$staging/" 2>/dev/null || true
 

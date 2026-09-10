@@ -53,7 +53,7 @@ Select the package matching your operating system and architecture to download t
 | 🍏 **macOS**     | Apple Silicon | [⬇️ Download for macOS ARM](https://github.com/marccher/sba-lite/releases/latest/download/sbalite-macos-aarch64.tar.gz)                                                          |
 | 🪟 **Windows**   | x86_64        | [⬇️ Download for Windows x86_64](https://github.com/marccher/sba-lite/releases/latest/download/sbalite-windows-x86_64.zip)                                                      |
 
-An official Docker image is also published via GitHub Packages (GHCR) for containerized deployments.
+An official Docker image is also published via GitHub Packages (GHCR) for containerized deployments (see the **Docker (Option A)** section below for setup instructions).
 
 ## Quick Start
 
@@ -72,7 +72,7 @@ poll_interval_secs = 10 # every quantum query remote actuators
 insecure_tls = false # true ONLY local or no prod use, otherwise use proper CA certs (ca_cert_path)
 ca_cert_path = ["/path/to/ca-a.pem", "/path/to/ca-b.pem"] # optional, if you want to use custom CA certs for HTTPS connections
 log_level = "info" # "info" (default) | "debug" (log every remote call) | "trace" (+ health response body)
-journal_max_events = 500 # circular buffer: beyond this number, events older than the journal are discarded
+journal_max_events = 1000 # circular buffer: beyond this number, events older than the journal are discarded
 
 # if you set BOTH, protect UI and API with HTTP Basic Auth
 #auth_username = "admin" 
@@ -118,7 +118,8 @@ Launch the executable directly from your terminal (Command Prompt or PowerShell)
 .\sbalite.exe
 ```
 
-Open `http://localhost:9001` in your browser.
+The HTTP server is started. Open http://localhost:9001 in your browser.
+
 
 ## Spring Boot Actuator
 
@@ -189,7 +190,7 @@ To fetch the official container image from GitHub Container Registry, run:
 docker pull ghcr.io/marccher/sba-lite:latest
 ```
 
-Then run the container (replace `ghcr.io/...` below with the image path):
+Then run the container:
 ```bash
 docker run -d \
   --name my-sbalite \
@@ -198,6 +199,7 @@ docker run -d \
   -v "/PATH/TO/YOUR/LOCAL/CERTIFICATES:/etc/ssl/certs" \
   ghcr.io/marccher/sba-lite:latest
 ```
+The HTTP server is started. Open http://localhost:9001 in your browser.
 
 ### Option B: Build and Run Locally
 If you want to compile and build the container image directly from source, execute the following commands from the root directory:
@@ -215,11 +217,14 @@ docker run -d \
   -v "/PATH/TO/YOUR/LOCAL/CERTIFICATES:/etc/ssl/certs" \
   sbalite-local
 ```
+The HTTP server is started. Open http://localhost:9001 in your browser.
 
 ### ℹ️ Configuration Notes
 * **`instances.toml`**: Run the container command from the exact folder where your configuration file is located. `$(pwd)` automatically resolves to your current working directory.
 * **Certificates**: Replace `/PATH/TO/YOUR/LOCAL/CERTIFICATES` with the absolute path to the directory on your host machine containing your custom CA certificates (e.g., `.pem` or `.crt` files). This allows the proxy to securely authenticate external HTTPS connections.
 * **Subsequent Runs**: To stop the server, use `docker stop my-sbalite`. To start it again without recreating the container, simply run `docker start my-sbalite`.
+
+The HTTP server is started. Open http://localhost:9001 in your browser.
 
 ## License
 

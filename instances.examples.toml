@@ -10,7 +10,7 @@ insecure_tls = false             # true ONLY for local targets with self-signed 
 # ca_cert_path = "/path/to/internal-ca.pem"  # trust an internal/corporate CA in ADDITION to the OS trust store
 # ca_cert_path = ["/path/to/ca-a.pem", "/path/to/ca-b.pem"]  # or a list, if you have multiple different internal CAs
 log_level = "info"                # "info" (default) | "debug" (log every remote call) | "trace" (+ health response body)
-journal_max_events = 5000         # circular buffer: beyond this number, the oldest journal events are discarded
+journal_max_events = 1000         # circular buffer: beyond this number, the oldest journal events are discarded
 # auth_username = "admin"         # if BOTH are set, protects UI and API with HTTP Basic Auth
 # auth_password = "change-this-password"
 
