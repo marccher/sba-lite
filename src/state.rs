@@ -362,7 +362,7 @@ pub async fn build_application_groups(state: &MonitorState) -> Vec<ApplicationGr
             } else {
                 "DOWN"
             }
-                .to_string();
+            .to_string();
 
             let status_timestamp = group_instances
                 .iter()
@@ -387,6 +387,13 @@ pub async fn build_application_groups(state: &MonitorState) -> Vec<ApplicationGr
 
 /// Runs one full polling cycle over all configured instances and updates
 /// the shared state.
+/// Runs a single poll cycle immediately, without waiting for the periodic
+/// timer. Exposed for integration tests, which need deterministic control
+/// over when a poll happens instead of waiting on a real interval.
+pub async fn run_poll_once(state: &MonitorState) {
+    poll_once(state).await;
+}
+
 async fn poll_once(state: &MonitorState) {
     let configs: Vec<InstanceConfig> = state.configs.values().cloned().collect();
 

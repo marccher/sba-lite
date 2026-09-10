@@ -36,7 +36,7 @@ pub async fn applications_handler(
         // an XHR/fetch Accept header — serve the SPA shell instead of raw
         // JSON, since this exact route otherwise takes priority over the
         // static-file fallback in main.rs.
-        crate::spa_shell()
+        crate::static_files::spa_shell()
     } else {
         Json(build_application_groups(&state).await).into_response()
     }
@@ -117,7 +117,7 @@ pub async fn journal_handler(headers: HeaderMap, State(state): State<MonitorStat
         // Same reasoning as applications_handler: a browser refresh on
         // this exact path would otherwise get raw JSON instead of the SPA
         // shell.
-        crate::spa_shell()
+        crate::static_files::spa_shell()
     } else {
         let journal = state.journal.read().await;
         Json(journal.clone()).into_response()
@@ -138,7 +138,7 @@ pub async fn instance_detail_handler(
         .unwrap_or("");
 
     if accept.contains("text/html") {
-        return crate::spa_shell();
+        return crate::static_files::spa_shell();
     }
 
     let instances = state.instances.read().await;
@@ -146,6 +146,22 @@ pub async fn instance_detail_handler(
         Some(view) => Json(view.clone()).into_response(),
         None => StatusCode::NOT_FOUND.into_response(),
     }
+}
+
+/// Hop-by-hop headers (RFC 7230 §6.1): must never be forwarded as-is by a
+/// proxy.
+fn is_hop_by_hop(name: &str) -> bool {
+    matches!(
+        name.to_ascii_lowercase().as_str(),
+        "connection"
+            | "keep-alive"
+            | "proxy-authenticate"
+            | "proxy-authorization"
+            | "te"
+            | "trailer"
+            | "transfer-encoding"
+            | "upgrade"
+    )
 }
 
 /// ANY /instances/{id}/actuator/{*path} — direct proxy to the instance's
@@ -192,7 +208,7 @@ pub async fn instance_actuator_proxy(
         // remote target (the browser doesn't know the actuator's token):
         // we ignore it and only use the one statically configured for the
         // instance, if any.
-        if crate::is_hop_by_hop(name.as_str())
+        if is_hop_by_hop(name.as_str())
             || name.as_str().eq_ignore_ascii_case("host")
             || name.as_str().eq_ignore_ascii_case("authorization")
         {
@@ -211,7 +227,7 @@ pub async fn instance_actuator_proxy(
             tracing::debug!(target: "sbalite::proxy", "  -> {status} {target_url}");
             let mut out_headers = HeaderMap::new();
             for (name, value) in resp.headers().iter() {
-                if crate::is_hop_by_hop(name.as_str())
+                if is_hop_by_hop(name.as_str())
                     || name.as_str().eq_ignore_ascii_case("content-length")
                 {
                     continue;
@@ -245,5 +261,24 @@ pub async fn instance_actuator_proxy(
             tracing::error!("Actuator proxy error towards {target_url}: {e}");
             StatusCode::BAD_GATEWAY.into_response()
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn hop_by_hop_headers_are_recognized_case_insensitively() {
+        assert!(is_hop_by_hop("Connection"));
+        assert!(is_hop_by_hop("transfer-encoding"));
+        assert!(is_hop_by_hop("KEEP-ALIVE"));
+    }
+
+    #[test]
+    fn ordinary_headers_are_not_hop_by_hop() {
+        assert!(!is_hop_by_hop("content-type"));
+        assert!(!is_hop_by_hop("authorization"));
+        assert!(!is_hop_by_hop("x-custom-header"));
     }
 }
