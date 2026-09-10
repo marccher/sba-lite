@@ -42,6 +42,18 @@ pub async fn applications_handler(
     }
 }
 
+/// POST /applications — observed in the real Java backend to return 200
+/// with an empty body and no visible effect in the UI. We couldn't find a
+/// documented purpose for this specific endpoint (Spring Boot Admin's
+/// client self-registration protocol POSTs to /instances, not
+/// /applications, and this project uses static configuration instead of
+/// dynamic registration anyway) — we simply mirror the same
+/// no-op-with-200 behavior rather than invent a semantic that isn't
+/// confirmed.
+pub async fn applications_post_handler() -> StatusCode {
+    StatusCode::OK
+}
+
 async fn sse_stream(state: MonitorState) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
     // The real backend doesn't send an initial snapshot on this channel
     // (confirmed by the capture: only ":ping" until an application's

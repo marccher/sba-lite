@@ -19,7 +19,10 @@ use state::MonitorState;
 /// hand-rolled approximation of it.
 pub fn build_app(monitor_state: MonitorState, auth: AuthConfig) -> Router {
     let monitor_router = Router::new()
-        .route("/applications", get(handlers::applications_handler))
+        .route(
+            "/applications",
+            get(handlers::applications_handler).post(handlers::applications_post_handler),
+        )
         .route("/instances/events", get(handlers::journal_handler))
         .route("/instances/:id", get(handlers::instance_detail_handler))
         .route(
