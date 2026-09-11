@@ -1,0 +1,117 @@
+name: Release
+
+# Triggered by pushing a version tag, e.g.:
+#   git tag v0.1.0
+#   git push origin v0.1.0
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  # Lets you trigger a build manually from the Actions tab, without
+  # publishing a release (useful to sanity-check the pipeline itself).
+  workflow_dispatch:
+
+permissions:
+  contents: write # needed to create the GitHub Release and upload assets
+
+jobs:
+  build:
+    name: Build (${{ matrix.name }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux-x86_64
+            runner: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+          - name: linux-aarch64
+            runner: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+#          - name: macos-x86_64
+#            runner: macos-13 # Intel
+#            target: x86_64-apple-darwin
+          - name: macos-aarch64
+            runner: macos-14 # Apple Silicon
+            target: aarch64-apple-darwin
+          - name: windows-x86_64
+            runner: windows-latest
+            target: x86_64-pc-windows-msvc
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        # ui-dist/ is committed in the repo, so it's already present here —
+        # required by rust-embed at compile time, no extra step needed.
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Cache cargo/target
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+
+      - name: Build release binary
+        run: cargo build --release --locked --target ${{ matrix.target }}
+
+      - name: Package artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          bin_name="sbalite"
+          staging="sbalite-${{ matrix.name }}"
+          mkdir -p "$staging"
+
+          if [[ "${{ matrix.target }}" == *windows* ]]; then
+            cp "target/${{ matrix.target }}/release/${bin_name}.exe" "$staging/"
+          else
+            # Strip debug symbols to reduce binary size (not applicable on Windows PE).
+            strip "target/${{ matrix.target }}/release/${bin_name}" || true
+            cp "target/${{ matrix.target }}/release/${bin_name}" "$staging/"
+          fi
+
+          cp instances.example.toml "$staging/" 2>/dev/null || true
+          cp README.txt "$staging/" 2>/dev/null || true
+          cp LICENSE "$staging/" 2>/dev/null || true
+          cp NOTICE "$staging/" 2>/dev/null || true
+
+          if [[ "${{ matrix.target }}" == *windows* ]]; then
+            7z a "${staging}.zip" "$staging"
+            echo "ASSET_PATH=${staging}.zip" >> "$GITHUB_ENV"
+          else
+            tar -czf "${staging}.tar.gz" "$staging"
+            echo "ASSET_PATH=${staging}.tar.gz" >> "$GITHUB_ENV"
+          fi
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.name }}
+          path: ${{ env.ASSET_PATH }}
+          if-no-files-found: error
+
+  release:
+    name: Publish release
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Generate checksums
+        working-directory: dist
+        run: sha256sum * > checksums.txt
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true

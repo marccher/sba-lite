@@ -1,0 +1,22 @@
+[server]
+port = 9001                      # port the Rust server listens on
+poll_interval_secs = 10          # how often to poll the remote actuators
+insecure_tls = false             # true ONLY local or no prod use, otherwise use proper CA certs (ca_cert_path)
+# ca_cert_path = "/path/to/internal-ca.pem"  # trust an internal/corporate CA in ADDITION to the OS trust store
+# ca_cert_path = ["/path/to/ca-a.pem", "/path/to/ca-b.pem"]  # or a list, if you have multiple different internal CAs
+log_level = "info"                # "info" (default) | "debug" (log every remote call) | "trace" (+ health response body)
+journal_max_events = 1000         # circular buffer: beyond this number, the oldest journal events are discarded
+# auth_username = "admin"         # if BOTH are set, protects UI and API with HTTP Basic Auth
+# auth_password = "change-this-password"
+
+[[instance]]
+name = "my-service"
+actuator_base_url = "https://host/context/actuator"
+
+# Example of an instance that requires Bearer/JWT authentication towards
+[[instance]]
+name = "my-secured-service"
+actuator_base_url = "https://host/context/actuator"
+bearer_token = "PASTE_YOUR_TOKEN_HERE"
+
+# Add other instances here following the same pattern.
