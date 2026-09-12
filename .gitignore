@@ -5,3 +5,4 @@ target/
 # Contiene URL/hostname interni, bearer token e credenziali Basic Auth reali:
 # non va mai committato. Usa instances.toml.example come base.
 instances.toml
+certs/

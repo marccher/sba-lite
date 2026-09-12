@@ -14,6 +14,35 @@ SBA Lite embeds the official Spring Boot Admin Vue UI into a native Rust backend
 - **State & Discovery**: Application and instance discovery with continuous health polling and an event journal.
 - **Real-time Updates**: Live instance state updates driven by Server-Sent Events (SSE).
 
+
+
+## Architecture
+
+SBA Lite acts as an adaptive backend for the official Spring Boot Admin Vue UI. Instead of being a blind network proxy, it provides an active translation layer that normalizes remote responses in real time.
+
+```text
+                    ┌──────────────────────┐
+                    │   SBA Lite / Rust    │
+                    │                      │
+Browser ───────────►│ Embedded SBA Vue UI  │
+                    │          │           │
+                    │          ▼           │
+                    │ Actuator Translator  │
+                    │          │           │
+                    └──────────┼───────────┘
+                               │
+                    ┌──────────┼──────────┐
+                    ▼          ▼          ▼
+                 App 1      App 2      App 3
+               Actuator    Actuator    Actuator
+```
+
+### How It Works
+
+1. **Frontend Delivery**: The browser loads the official Spring Boot Admin Vue UI single-page application (SPA), which is embedded directly into the SBA Lite native binary.
+2. **API Interception**: When the UI requests monitoring data, the Rust core intercepts the calls and fetches the raw data from the configured remote Spring Boot Actuator endpoints.
+3. **Payload Translation**: The Rust engine parses, cleans, and translates the Actuator JSON responses on the fly, reshaping them into the exact data structures expected by the Vue frontend.
+4. **Real-time Streaming**: Live instance state and health updates are continuously pushed back to the browser using Server-Sent Events (SSE).
 ## Memory Footprint & Runtime Behavior
 
 Observed Resident Set Size (RSS) in the author's environment over a 180-second active monitoring cycle:
@@ -57,7 +86,10 @@ An official Docker image is also published via GitHub Packages (GHCR) for contai
 
 ## Quick Start
 
-SBA Lite runs as a zero-dependency setup requiring only **two files**: the precompiled executable binary and the configuration file.
+SBA Lite is a single native binary.
+No JVM. No application server. No database.
+Just the executable and `instances.toml`.
+
 
 ### 1. Configuration
 
@@ -178,45 +210,47 @@ The UI in `ui-dist/` is extracted from the official `spring-boot-admin-server-ui
 You can choose to pull the pre-built official image or build it yourself from source.
 
 ### Option A: Pull the Pre-built Image
-To fetch the official container image from GitHub Container Registry, run:
 
-```bash
+```
 docker pull ghcr.io/marccher/sba-lite:latest
 ```
 
-Then run the container:
-```bash
+```
 docker run -d \
   --name my-sbalite \
   -p 9001:9001 \
-  -v "\$(pwd)/instances.toml:/config/instances.toml" \
-  -v "/PATH/TO/YOUR/LOCAL/CERTIFICATES:/etc/ssl/certs" \
+  -v "$(pwd)/instances.toml:/config/instances.toml" \
+  -v "$(pwd)/certs:/certs:ro" \
   ghcr.io/marccher/sba-lite:latest
 ```
-The HTTP server is started. Open http://localhost:9001 in your browser.
+
+The HTTP server is started. Open <http://localhost:9001> in your browser.
 
 ### Option B: Build and Run Locally
+
 If you want to compile and build the container image directly from source, execute the following commands from the root directory:
 
-```bash
+```
 docker build -t sbalite-local .
 ```
 
-To run your locally built container:
-```bash
+```
 docker run -d \
   --name my-sbalite \
   -p 9001:9001 \
-  -v "\$(pwd)/instances.toml:/config/instances.toml" \
-  -v "/PATH/TO/YOUR/LOCAL/CERTIFICATES:/etc/ssl/certs" \
+  -v "$(pwd)/instances.toml:/config/instances.toml" \
+  -v "$(pwd)/certs:/certs:ro" \
   sbalite-local
 ```
-The HTTP server is started. Open http://localhost:9001 in your browser.
+
+The HTTP server is started. Open <http://localhost:9001> in your browser.
+
+> The `certs` folder mount is optional — only needed if you must trust an internal/corporate CA. Point `ca_cert_path` at the matching `/certs/...` path(s) in `instances.toml` (see `instances.example.toml`). sbalite ships with Mozilla's public CA list built in and does not read the container's system certificate store, so mounting anything to `/etc/ssl/certs` has no effect.
 
 ### ℹ️ Configuration Notes
-* **`instances.toml`**: Run the container command from the exact folder where your configuration file is located. `$(pwd)` automatically resolves to your current working directory.
-* **Certificates**: Replace `/PATH/TO/YOUR/LOCAL/CERTIFICATES` with the absolute path to the directory on your host machine containing your custom CA certificates (e.g., `.pem` or `.crt` files). This allows the proxy to securely authenticate external HTTPS connections.
-* **Subsequent Runs**: To stop the server, use `docker stop my-sbalite`. To start it again without recreating the container, simply run `docker start my-sbalite`.
+
+- **`instances.toml`**: Run the container command from the exact folder where your configuration file is located. `$(pwd)` automatically resolves to your current working directory.
+- **Subsequent Runs**: To stop the server, use `docker stop my-sbalite`. To start it again without recreating the container, simply run `docker start my-sbalite`.
 
 ## License
 
