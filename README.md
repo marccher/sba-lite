@@ -16,7 +16,7 @@ SBA Lite embeds the official Spring Boot Admin Vue UI into a native Rust backend
 
 ## Memory Footprint & Runtime Behavior
 
-Observed Resident Set Size (RSS) in the author's environment over a 180-second idle monitoring cycle:
+Observed Resident Set Size (RSS) in the author's environment over a 180-second active monitoring cycle:
 
 | Implementation | Average Memory (RSS) | Memory Behavior Over Time |
 |---|:---:|---|
@@ -129,24 +129,11 @@ The HTTP server is started. Open http://localhost:9001 in your browser.
 
 ## Spring Boot Actuator
 
-The monitored application must expose Actuator over HTTP.
+The monitored applications must expose Spring Boot Actuator over HTTP. If not already present, ensure the official starter is included in your project (e.g., `spring-boot-starter-actuator`).
 
-Maven:
+### Required Configuration
 
-```xml
-<dependency>
-    <groupId>org.springframework.boot</groupId>
-    <artifactId>spring-boot-starter-actuator</artifactId>
-</dependency>
-```
-
-Gradle:
-
-```groovy
-implementation 'org.springframework.boot:spring-boot-starter-actuator'
-```
-
-For full endpoint support, expose the endpoints required by your environment:
+For full endpoint support, expose the required endpoints in your target application's `application.yml`:
 
 ```yaml
 management:
@@ -162,15 +149,16 @@ management:
       enabled: true
 ```
 
-For production, prefer an explicit endpoint list and protect sensitive Actuator endpoints with authentication.
+*Note: For production environments, prefer an explicit endpoint list instead of `"*"` and protect sensitive Actuator endpoints with proper authentication.*
 
-Verify the remote Actuator:
+### Verify Remote Actuator
+
+Before connecting SBA Lite, you can verify that the remote Actuator endpoints are accessible by running:
 
 ```bash
-curl -s https://host/context/actuator
-curl -s https://host/context/actuator/health
+curl -k -s https://host/context/actuator
+curl -k -s https://host/context/actuator/health
 ```
-
 ## Building from source
 
 ```bash
@@ -229,8 +217,6 @@ The HTTP server is started. Open http://localhost:9001 in your browser.
 * **`instances.toml`**: Run the container command from the exact folder where your configuration file is located. `$(pwd)` automatically resolves to your current working directory.
 * **Certificates**: Replace `/PATH/TO/YOUR/LOCAL/CERTIFICATES` with the absolute path to the directory on your host machine containing your custom CA certificates (e.g., `.pem` or `.crt` files). This allows the proxy to securely authenticate external HTTPS connections.
 * **Subsequent Runs**: To stop the server, use `docker stop my-sbalite`. To start it again without recreating the container, simply run `docker start my-sbalite`.
-
-The HTTP server is started. Open http://localhost:9001 in your browser.
 
 ## License
 
