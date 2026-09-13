@@ -23,6 +23,8 @@ RUN RUST_TARGET="$(rustc -vV | sed -n 's/host: //p')" && \
     cp "target/$RUST_TARGET/release/sbalite" /sbalite
 
 FROM scratch
+LABEL org.opencontainers.image.source="https://github.com"
+
 # NOTE: sbalite is built with reqwest's "rustls-tls-webpki-roots" feature,
 # which bundles Mozilla's CA list directly into the binary at compile
 # time. It never reads a system certificate store at runtime, so there is
